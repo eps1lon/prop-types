@@ -1218,6 +1218,138 @@ describe('PropTypesDevelopmentStandalone', () => {
     });
   });
 
+  describe('Intersection Types', () => {
+    it('should warn but not error for invalid argument', () => {
+      spyOn(console, 'error');
+
+      PropTypes.eachOfType(
+        PropTypes.shape({ foo: PropTypes.number }),
+        PropTypes.shape({ bar: PropTypes.string })
+      );
+
+      expect(console.error).toHaveBeenCalled();
+      expect(console.error.calls.argsFor(0)[0]).toContain(
+        'Invalid argument supplied to eachOfType, expected an instance of array.',
+      );
+
+      typeCheckPass(PropTypes.oneOf(PropTypes.string, PropTypes.number), []);
+    });
+
+    it('should warn but for invalid argument type', () => {
+      spyOn(console, 'error');
+
+      const types = [undefined, null, false, new Date, /foo/, {}];
+      const expected = ['undefined', 'null', 'a boolean', 'a date', 'a regexp', 'an object'];
+
+      for (let i = 0; i < expected.length; i++) {
+        const type = types[i];
+        PropTypes.eachOfType([type]);
+        expect(console.error).toHaveBeenCalled();
+        expect(console.error.calls.argsFor(0)[0]).toContain(
+          'Invalid argument supplied to eachOfType. Expected an array of check functions, ' +
+          'but received ' + expected[i] + ' at index 0.'
+        );
+        console.error.calls.reset();
+      }
+
+      typeCheckPass(PropTypes.oneOf(PropTypes.string, PropTypes.number), []);
+    });
+
+    it('should warn if one of the types are invalid', () => {
+      /* typeCheckFail(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        [],
+        'Invalid prop `testProp` supplied to `testComponent`, expected `object`.',
+      ); */
+
+      const checker = PropTypes.eachOfType([
+        PropTypes.shape({a: PropTypes.number.isRequired}),
+        PropTypes.shape({b: PropTypes.number.isRequired}),
+      ]);
+      typeCheckFail(
+        checker,
+        {a: '2'},
+        'Invalid prop `testProp` supplied to `testComponent`.',
+      );
+      typeCheckFail(
+        checker,
+        {b: '3'},
+        'Invalid prop `testProp` supplied to `testComponent`.',
+      );
+    });
+
+    it('should not warn if all of the types are valid', () => {
+      let checker = PropTypes.eachOfType([
+        PropTypes.shape({ foo: PropTypes.number }),
+        PropTypes.shape({ bar: PropTypes.string })
+      ]);
+      typeCheckPass(checker, null);
+      typeCheckPass(checker, { foo: 1 });
+      typeCheckPass(checker, { foo: 1, bar: '2' });
+      typeCheckPass(checker, { bar: '2' });
+
+      checker = PropTypes.eachOfType([
+        PropTypes.shape({a: PropTypes.number.isRequired}),
+        PropTypes.shape({b: PropTypes.number.isRequired}),
+      ]);
+      typeCheckPass(checker, {a: 1, b: 1});
+    });
+
+    it('should be implicitly optional and not warn without values', () => {
+      typeCheckPass(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        null,
+      );
+      typeCheckPass(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        undefined,
+      );
+    });
+
+    it('should warn for missing required values', () => {
+      typeCheckFailRequiredValues(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]).isRequired,
+      );
+    });
+
+    it('should warn if called manually in development', () => {
+      spyOn(console, 'error');
+      expectThrowsInDevelopment(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        [],
+      );
+      expectThrowsInDevelopment(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        null,
+      );
+      expectThrowsInDevelopment(
+        PropTypes.eachOfType([
+          PropTypes.shape({ foo: PropTypes.number }),
+          PropTypes.shape({ bar: PropTypes.string })
+        ]),
+        undefined,
+      );
+    });
+  })
+
   describe('Shape Types', () => {
     it('should warn for non objects', () => {
       typeCheckFail(
